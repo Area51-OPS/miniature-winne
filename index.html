@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Hyper-Drive Racer</title>
+    <style>
+        body { margin: 0; background: #111; display: flex; justify-content: center; align-items: center; height: 100vh; font-family: 'Courier New', Courier, monospace; }
+        #game-container { position: relative; border: 5px solid #333; box-shadow: 0 0 20px #00f2ff; }
+        canvas { background: linear-gradient(#00072d, #0a0a0a); display: block; }
+        #ui { position: absolute; top: 10px; left: 10px; color: #00f2ff; text-shadow: 2px 2px #000; pointer-events: none; }
+    </style>
+</head>
+<body>
+    <div id="game-container">
+        <div id="ui">
+            SPEED: <span id="speed">0</span> KM/H<br>
+            SCORE: <span id="score">0</span>
+        </div>
+        <canvas id="racer" width="400" height="600"></canvas>
+    </div>
+
+<script>
+    const canvas = document.getElementById("racer");
+    const ctx = canvas.getContext("2d");
+    const speedDisplay = document.getElementById("speed");
+    const scoreDisplay = document.getElementById("score");
+
+    let score = 0;
+    let speed = 0;
+    let roadOffset = 0;
+    let gameActive = true;
+
+    const player = {
+        x: 175,
+        y: 480,
+        w: 50,
+        h: 80,
+        targetX: 175,
+        velocity: 0
+    };
+
+    let obstacles = [];
+    const keys = {};
+
+    window.addEventListener("keydown", e => keys[e.code] = true);
+    window.addEventListener("keyup", e => keys[e.code] = false);
+
+    function createObstacle() {
+        const lanes = [60, 175, 290];
+        obstacles.push({
+            x: lanes[Math.floor(Math.random() * lanes.length)],
+            y: -100,
+            w: 50,
+            h: 80,
+            color: `hsl(${Math.random() * 360}, 70%, 50%)`
+        });
+    }
+
+    function update() {
+        if (!gameActive) return;
+
+        // Speed Logic
+        speed = Math.min(speed + 0.05, 15); 
+        roadOffset += speed;
+        score += Math.floor(speed / 5);
+        
+        // Steering with Momentum
+        if (keys["ArrowLeft"]) player.velocity -= 0.8;
+        if (keys["ArrowRight"]) player.velocity += 0.8;
+        player.velocity *= 0.9; // Friction
+        player.x += player.velocity;
+
+        // Boundary limits
+        if (player.x < 30) player.x = 30;
+        if (player.x > 320) player.x = 320;
+
+        // Obstacle Logic
+        if (Math.random() < 0.02) createObstacle();
+
+        obstacles.forEach((obs, i) => {
+            obs.y += speed * 0.8;
+            
+            // Collision Detection
+            if (player.x < obs.x + obs.w && player.x + player.w > obs.x &&
+                player.y < obs.y + obs.h && player.y + player.h > obs.y) {
+                gameActive = false;
+                alert("CRASHED! FINAL SCORE: " + score);
+                location.reload();
+            }
+
+            if (obs.y > 600) obstacles.splice(i, 1);
+        });
+
+        speedDisplay.innerText = Math.floor(speed * 20);
+        scoreDisplay.innerText = score;
+    }
+
+    function draw() {
+        ctx.clearRect(0, 0, 400, 600);
+
+        // Draw Road (Perspective lines)
+        ctx.fillStyle = "#222";
+        ctx.beginPath();
+        ctx.moveTo(100, 0); ctx.lineTo(300, 0);
+        ctx.lineTo(400, 600); ctx.lineTo(0, 600);
+        ctx.fill();
+
+        // Animated Road Stripes
+        ctx.strokeStyle = "#fff";
+        ctx.lineWidth = 5;
+        ctx.setLineDash([40, 40]);
+        ctx.lineDashOffset = -roadOffset;
+        
+        // Left Line
+        ctx.beginPath(); ctx.moveTo(140, 0); ctx.lineTo(100, 600); ctx.stroke();
+        // Right Line
+        ctx.beginPath(); ctx.moveTo(260, 0); ctx.lineTo(300, 600); ctx.stroke();
+
+        // Draw Player Car (Cyberpunk style)
+        ctx.fillStyle = "#00f2ff";
+        ctx.fillRect(player.x, player.y, player.w, player.h);
+        ctx.fillStyle = "#fff"; // Windshield
+        ctx.fillRect(player.x + 5, player.y + 10, player.w - 10, 20);
+        ctx.fillStyle = "red"; // Tail lights
+        ctx.fillRect(player.x, player.y + 70, 10, 10);
+        ctx.fillRect(player.x + 40, player.y + 70, 10, 10);
+
+        // Draw Obstacles
+        obstacles.forEach(obs => {
+            ctx.fillStyle = obs.color;
+            ctx.fillRect(obs.x, obs.y, obs.w, obs.h);
+            ctx.fillStyle = "rgba(0,0,0,0.3)";
+            ctx.fillRect(obs.x + 5, obs.y + 10, obs.w - 10, 20);
+        });
+
+        update();
+        requestAnimationFrame(draw);
+    }
+
+    draw();
+</script>
+</body>
+</html>
